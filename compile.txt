@@ -1,0 +1,20 @@
+in src:
+	./make.bash
+
+in test:
+	GOSSAFUNC=bce4 ../bin/go build -gcflags="-d=ssa/check_bce/debug -d=ssa/prove/debug=3" ../test/loopbce1.go 2>&1
+	
+asm:
+	../bin/go tool objdump -s 'bce4' -S ./loopbce1 >loopbce1.asm
+
+
+prove.go:
+
+func prove(f *Func) {
+	// Find induction variables. Currently, findIndVars
+	// is limited to one induction variable per block.
+	if f.Name == "bce4" {
+		sdom1 := f.Sdom()
+		fmt.Print(f.Name+"\n", sdom1.treestructure(f.Entry), "\n")
+	}
+
