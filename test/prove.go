@@ -1098,7 +1098,7 @@ func modu2(x, y uint) int {
 
 func issue57077(s []int) (left, right []int) {
 	middle := len(s) / 2
-	left = s[:middle] // ERROR "Proved IsSliceInBounds$"
+	left = s[:middle]  // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
 	return
 }

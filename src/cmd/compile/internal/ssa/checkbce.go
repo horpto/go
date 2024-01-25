@@ -19,7 +19,7 @@ func checkbce(f *Func) {
 		for _, v := range b.Values {
 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
 				if f.pass.debug > 0 {
-					f.Warnl(v.Pos, "Found %v", v.Op)
+					f.Warnl(v.Pos, "Found %v, %v", v.Op, v.Args)
 				}
 				if logopt.Enabled() {
 					if v.Op == OpIsInBounds {

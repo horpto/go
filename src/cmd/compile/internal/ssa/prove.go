@@ -8,6 +8,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
+	"time"
 )
 
 type branch int
@@ -209,10 +210,13 @@ func newFactsTable(f *Func) *factsTable {
 // restricting it to r.
 func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	if parent.Func.pass.debug > 2 {
-		parent.Func.Warnl(parent.Pos, "parent=%s, update %s %s %s", parent, v, w, r)
+		parent.Func.Warnl(parent.Pos, "parent=%s, UPDATE %s %s %s %s", parent, v, w, d, r)
 	}
 	// No need to do anything else if we already found unsat.
 	if ft.unsat {
+		if parent.Func.pass.debug > 2 {
+			parent.Func.Warnl(parent.Pos, "parent=%s, return1 %s %s %s", parent, v, w, r)
+		}
 		return
 	}
 
@@ -221,6 +225,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	if v == w {
 		if r&eq == 0 {
 			ft.unsat = true
+		}
+		if parent.Func.pass.debug > 2 {
+			parent.Func.Warnl(parent.Pos, "parent=%s, return2 %s %s %s", parent, v, w, r)
 		}
 		return
 	}
@@ -250,6 +257,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		if !ok {
 			if parent.Func.pass.debug > 2 {
 				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
+				parent.Func.Warnl(parent.Pos, "parent=%s, return3 %s %s %s", parent, v, w, r)
 			}
 			ft.unsat = true
 			return
@@ -271,14 +279,22 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		}
 		// No changes compared to information already in facts table.
 		if oldR == r {
+			if parent.Func.pass.debug > 2 {
+				parent.Func.Warnl(parent.Pos, "parent=%s, return4 %s %s %s", parent, v, w, r)
+			}
 			return
 		}
 		ft.stack = append(ft.stack, fact{p, oldR})
 		ft.facts[p] = oldR & r
+		if parent.Func.pass.debug > 2 {
+			parent.Func.Warnl(parent.Pos, "parent=%s, new fact %v %s", parent, p, ft.facts[p])
+		}
+
 		// If this relation is not satisfiable, mark it and exit right away
 		if oldR&r == 0 {
 			if parent.Func.pass.debug > 2 {
 				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
+				parent.Func.Warnl(parent.Pos, "parent=%s, return5 %s %s %s", parent, v, w, r)
 			}
 			ft.unsat = true
 			return
@@ -381,16 +397,26 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		lim = old.intersect(lim)
 		ft.limits[v.ID] = lim
 		if v.Block.Func.pass.debug > 2 {
-			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s %s", parent, v, w, r, lim.String())
+			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %v %v %s %s", parent, v, w, r, lim.String())
 		}
 		if lim.min > lim.max || lim.umin > lim.umax {
 			ft.unsat = true
+			if parent.Func.pass.debug > 2 {
+				parent.Func.Warnl(parent.Pos, "parent=%s, return6 %s %s %s", parent, v, w, r)
+			}
 			return
 		}
 	}
 
+	if parent.Func.pass.debug > 2 {
+		parent.Func.Warnl(parent.Pos, "parent=%s, update11 %s %s %s", parent, v, w, r)
+	}
+
 	// Derived facts below here are only about numbers.
 	if d != signed && d != unsigned {
+		if parent.Func.pass.debug > 2 {
+			parent.Func.Warnl(parent.Pos, "parent=%s, return7 %s %s %s", parent, v, w, r)
+		}
 		return
 	}
 
@@ -577,6 +603,10 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		case d == unsigned && !w.Args[0].Type.IsSigned():
 			ft.update(parent, v, w.Args[0], d, r)
 		}
+	}
+
+	if parent.Func.pass.debug > 2 {
+		parent.Func.Warnl(parent.Pos, "parent=%s, return8 %s %s %s", parent, v, w, r)
 	}
 }
 
@@ -801,6 +831,11 @@ func (ft *factsTable) cleanup(f *Func) {
 func prove(f *Func) {
 	// Find induction variables. Currently, findIndVars
 	// is limited to one induction variable per block.
+	if f.Name == "bce4" {
+		sdom1 := f.Sdom()
+		fmt.Print(f.Name+" treestructure\n", sdom1.treestructure(f.Entry), "\n")
+	}
+
 	var indVars map[*Block]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind
@@ -973,6 +1008,11 @@ func prove(f *Func) {
 				// (There can be some that are CSEd but not removed yet.)
 				continue
 			}
+
+			if f.pass.debug > 2 {
+				f.Warnl(b.Pos, "block %s, v: %s %s, time: %s", b, v, v.Args, time.Now())
+			}
+
 			switch v.Op {
 			case OpStringLen:
 				ft.update(b, v, ft.zero, signed, gt|eq)
@@ -1115,6 +1155,10 @@ func prove(f *Func) {
 	idom := f.Idom()
 	sdom := f.Sdom()
 
+	if f.pass.debug > 2 {
+		f.Warnl(src.XPos{}, "Start DFS %s", time.Now())
+	}
+
 	// DFS on the dominator tree.
 	//
 	// For efficiency, we consider only the dominator tree rather
@@ -1196,7 +1240,7 @@ func prove(f *Func) {
 			}
 
 		case simplify:
-			simplifyBlock(sdom, ft, node.block)
+			simplifyBlock(sdom, ft, node.block, f)
 			ft.restore()
 		}
 	}
@@ -1298,6 +1342,10 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		panic("unknown branch")
 	}
 	if tr, has := domainRelationTable[c.Op]; has {
+		if b.Func.pass.debug > 2 {
+			b.Func.Warnl(b.Pos, "DomainRelationTable %s, dom: %s, rel: %s, control:%s", c, tr.d, tr.r, b.Controls)
+		}
+
 		// When we branched from parent we learned a new set of
 		// restrictions. Update the factsTable accordingly.
 		d := tr.d
@@ -1479,8 +1527,16 @@ var mostNegativeDividend = map[Op]int64{
 
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
-func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block, f *Func) {
+	if f.pass.debug > 2 {
+		f.Warnl(b.Pos, "Simplify Block %s", b)
+	}
+
 	for _, v := range b.Values {
+		if f.pass.debug > 2 {
+			f.Warnl(b.Pos, "-------------- %s, %s", v, v.Args)
+		}
+
 		switch v.Op {
 		case OpSlicemask:
 			// Replace OpSlicemask operations in b with constants where possible.

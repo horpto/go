@@ -168,7 +168,7 @@ func g2() int {
 func g3a() {
 	a := "this string has length 25"
 	for i := 0; i < len(a); i += 5 { // ERROR "Induction variable: limits \[0,20\], increment 5$"
-		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+		useString(a[i:])   // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+3]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+5]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+6])

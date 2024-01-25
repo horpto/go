@@ -74,7 +74,7 @@ func (v *Value) String() string {
 	if v == nil {
 		return "nil" // should never happen, but not panicking helps with debugging
 	}
-	return fmt.Sprintf("v%d", v.ID)
+	return fmt.Sprintf("v%d(%v)", v.ID, v.Op)
 }
 
 func (v *Value) AuxInt8() int8 {

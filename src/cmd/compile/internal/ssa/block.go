@@ -116,7 +116,7 @@ type BlockKind int16
 
 // short form print
 func (b *Block) String() string {
-	return fmt.Sprintf("b%d", b.ID)
+	return fmt.Sprintf("b%d(%s)", b.ID, b.Kind)
 }
 
 // long form print
